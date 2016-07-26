@@ -6,11 +6,13 @@ import com.parse.FindCallback;
 import com.parse.ParseException;
 import com.parse.ParseObject;
 import com.parse.ParseQuery;
+import com.parse.SaveCallback;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import interware.parseandroid.models.Publicacion;
+import interware.parseandroid.models.User;
 
 /**
  * Created by chelixpreciado on 7/21/16.
@@ -21,6 +23,8 @@ public class PostsHandler {
         public void onPostsObtained(ArrayList<Publicacion> posts);
         public void onError(String errorMsg);
     }
+
+    public interface postedPost{public void posted(boolean posted);}
 
     public static void getPosts(final GetPostCallback callback){
         ParseQuery<ParseObject> query = ParseQuery.getQuery("posts");
@@ -38,6 +42,17 @@ public class PostsHandler {
                 }else{
                     callback.onError(e.getMessage());
                 }
+            }
+        });
+    }
+
+    public static void doPost(String postMsg, final postedPost callback){
+        ParseObject userPObject = new ParseObject("posts");
+        userPObject.put("description", postMsg);
+        userPObject.saveInBackground(new SaveCallback() {
+            @Override
+            public void done(ParseException e) {
+                callback.posted(e!=null);
             }
         });
     }

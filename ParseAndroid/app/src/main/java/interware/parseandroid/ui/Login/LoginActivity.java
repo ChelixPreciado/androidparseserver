@@ -38,6 +38,7 @@ import java.util.List;
 import interware.parseandroid.R;
 import interware.parseandroid.models.User;
 import interware.parseandroid.parseserver.UsersHandler;
+import interware.parseandroid.persistencia.UserSession;
 import interware.parseandroid.ui.ParseappActivity;
 import interware.parseandroid.ui.PostLists.PostListsActivity;
 
@@ -57,6 +58,8 @@ public class LoginActivity extends ParseappActivity implements OnClickListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
+        validateLogin();
         // Set up the login form.
         mEmailView = (AutoCompleteTextView) findViewById(R.id.email);
         mPasswordView = (EditText) findViewById(R.id.password);
@@ -121,15 +124,18 @@ public class LoginActivity extends ParseappActivity implements OnClickListener {
         return !cancel;
     }
 
-    private void attemptLogin(User user) {
+    private void attemptLogin(final User user) {
         showLoader(true);
         UsersHandler.logInUser(user, new UsersHandler.logInUserCallback() {
             @Override
             public void isLogguedIn(boolean loggedIn) {
                 showLoader(false);
-                if (loggedIn)
+                if (loggedIn) {
+                    UserSession userSession = new UserSession(getApplicationContext());
+                    userSession.saveUserName(user.getUsername());
                     startActivity(new Intent(LoginActivity.this, PostListsActivity.class));
-                else
+                    finish();
+                }else
                     Log.i("Chelix", "Usuario invalido");
             }
 
@@ -141,14 +147,17 @@ public class LoginActivity extends ParseappActivity implements OnClickListener {
         });
     }
 
-    private void attemptRegister(User user){
+    private void attemptRegister(final User user){
         showLoader(true);
         UsersHandler.registerUser(user, new UsersHandler.registerUserCallback() {
             @Override
             public void isRegistered(boolean registered) {
                 Log.i("Chelix", "Usuario registrado.. :)");
+                UserSession userSession = new UserSession(getApplicationContext());
+                userSession.saveUserName(user.getUsername());
                 showLoader(false);
                 startActivity(new Intent(LoginActivity.this, PostListsActivity.class));
+                finish();
             }
         });
     }
@@ -180,6 +189,14 @@ public class LoginActivity extends ParseappActivity implements OnClickListener {
                     attemptRegister(u);
                 }
                 break;
+        }
+    }
+
+    private void validateLogin(){
+        UserSession userSession = new UserSession(getApplicationContext());
+        if (userSession.isLoggedIn()){
+            startActivity(new Intent(this, PostListsActivity.class));
+            finish();
         }
     }
 }
