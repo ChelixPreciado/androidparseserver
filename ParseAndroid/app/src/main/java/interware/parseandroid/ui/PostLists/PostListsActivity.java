@@ -22,10 +22,11 @@ import interware.parseandroid.models.Publicacion;
 import interware.parseandroid.parseserver.PostsHandler;
 import interware.parseandroid.persistencia.UserSession;
 import interware.parseandroid.ui.AddPost.AddPostFragment;
+import interware.parseandroid.ui.AddPost.AddPostFragmentListener;
 import interware.parseandroid.ui.Login.LoginActivity;
 import interware.parseandroid.ui.ParseappActivity;
 
-public class PostListsActivity extends ParseappActivity implements View.OnClickListener{
+public class PostListsActivity extends ParseappActivity implements View.OnClickListener, AddPostFragmentListener{
 
     public RecyclerView rvPosts;
     public PostsAdapter postsAdapter;
@@ -41,6 +42,7 @@ public class PostListsActivity extends ParseappActivity implements View.OnClickL
         RecyclerView.LayoutManager mLayoutManager = new LinearLayoutManager(getApplicationContext());
         rvPosts.setLayoutManager(mLayoutManager);
         rvPosts.setItemAnimator(new DefaultItemAnimator());
+        postsAdapter = new PostsAdapter(getApplicationContext());
         fillAdapter();
 
         edWritePost = (EditText)findViewById(R.id.ed_write_post);
@@ -52,10 +54,12 @@ public class PostListsActivity extends ParseappActivity implements View.OnClickL
 
     private void fillAdapter(){
         showLoader(true);
+        if (postsAdapter!=null)
+            postsAdapter.clear();
         PostsHandler.getPosts(new PostsHandler.GetPostCallback() {
             @Override
             public void onPostsObtained(ArrayList<Publicacion> posts) {
-                postsAdapter = new PostsAdapter(getApplicationContext(), posts);
+                postsAdapter.setPosts(posts);
                 rvPosts.setAdapter(postsAdapter);
                 showLoader(false);
             }
@@ -72,7 +76,6 @@ public class PostListsActivity extends ParseappActivity implements View.OnClickL
     public void onClick(View view) {
         switch (view.getId()){
             case R.id.ed_write_post:
-                Log.i("Chelix", "Muestra dialogo de escribir post");
                 InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
                 imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
                 showPostDialog();
@@ -93,5 +96,17 @@ public class PostListsActivity extends ParseappActivity implements View.OnClickL
     private void showPostDialog(){
         AddPostFragment postDialog = AddPostFragment.newInstance();
         postDialog.show(getFragmentManager(), "AddpostDialog");
+    }
+
+    @Override
+    public void onPostWrited(String postMsg, String postImageUrl) {
+        showLoader(true);
+        PostsHandler.doPost(postMsg, postImageUrl, new PostsHandler.postedPost() {
+            @Override
+            public void posted(boolean posted) {
+                showLoader(false);
+                fillAdapter();
+            }
+        });
     }
 }

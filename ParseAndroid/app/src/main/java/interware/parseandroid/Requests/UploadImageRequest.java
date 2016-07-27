@@ -2,8 +2,13 @@ package interware.parseandroid.Requests;
 
 import android.util.Log;
 
+import com.google.gson.stream.JsonReader;
+
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
+import java.util.HashMap;
+import java.util.Map;
 
 import okhttp3.MediaType;
 import okhttp3.MultipartBody;
@@ -33,21 +38,17 @@ public class UploadImageRequest extends FatherRequest {
         // MultipartBody.Part is used to send also the actual file name
         MultipartBody.Part fileBody =
                 MultipartBody.Part.createFormData("fileupload", file.getName(), requestFile);
+        RequestBody formatBody = RequestBody.create(MediaType.parse("text/plain"), "json");
 
-        // add another part within the multipart request
-        RequestBody formatBody =
-                RequestBody.create(
-                        MediaType.parse("multipart/form-data"), "json");
-
-        Call<ResponseBody> call = getApi().uploadImage("12DJKPSU5fc3afbd01b1630cc718cae3043220f3", formatBody, fileBody);
+        Call<ResponseBody> call = getApi().uploadImage("12DJKPSU5fc3afbd01b1630cc718cae3043220f3",
+                formatBody, fileBody);
         call.enqueue(new Callback<ResponseBody>() {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
                 Log.v("Upload", "success");
                 try {
                     String responseString = new String(response.body().bytes());
-                    Log.i("Chelix", "Response String: " + responseString);
-                    listener.onImageUploaded();
+                    listener.onImageUploaded(getImageUrl(responseString));
                 } catch (IOException e) {
                     e.printStackTrace();
                     listener.onError(e.getMessage());
@@ -63,7 +64,34 @@ public class UploadImageRequest extends FatherRequest {
     }
 
     public interface UploadImageRequestListener{
-        public void onImageUploaded();
+        public void onImageUploaded(String imageUrl);
         public void onError(String errorMsg);
+    }
+
+    private String getImageUrl(String jsonResponse){
+        JsonReader reader = new JsonReader(new StringReader(jsonResponse));
+        try {
+            String name = "";
+            reader.beginObject();
+            while (reader.hasNext()){
+                name = reader.nextName();
+                if (name.equals("links")){
+                    reader.beginObject();
+                    while (reader.hasNext()){
+                        name = reader.nextName();
+                        if (name.equals("image_link"))
+                            return reader.nextString();
+                        else
+                            reader.skipValue();
+                    }
+                    reader.endObject();
+                }else
+                    reader.skipValue();
+            }
+            reader.endObject();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }

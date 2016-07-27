@@ -4,24 +4,19 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
 import android.app.DialogFragment;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.drawable.ColorDrawable;
-import android.media.ExifInterface;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
-import android.support.design.widget.Snackbar;
-import android.support.v4.app.Fragment;
 import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -34,16 +29,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 
 import interware.parseandroid.R;
 import interware.parseandroid.Requests.UploadImageRequest;
+import interware.parseandroid.Utils.ImageUtils;
 import interware.parseandroid.Utils.LoaderUtils;
-import interware.parseandroid.parseserver.PostsHandler;
-import interware.parseandroid.ui.ParseappActivity;
+import interware.parseandroid.Utils.PicassoUtils;
 
 import static android.Manifest.permission.CAMERA;
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
@@ -54,11 +45,13 @@ public class AddPostFragment extends DialogFragment implements View.OnClickListe
     private EditText edPostText;
     private ViewGroup btnAddPick, vgTakenPicture;
     private ImageView ivPicture;
-    private File mImageFile;
     private String mPath;
     private static String MEDIA_DIRECTORY = "parseserver/pictures";
     static final int REQUEST_IMAGE_CAPTURE = 1;
     private static int MY_PERMISSIONS = 200;
+    private LoaderUtils loaderUtils;
+    private String postImageUrl = null;
+    private AddPostFragmentListener listener;
 
     public AddPostFragment() {
         // Required empty public constructor
@@ -95,6 +88,23 @@ public class AddPostFragment extends DialogFragment implements View.OnClickListe
     }
 
     @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+        try {
+            listener = (AddPostFragmentListener)activity;
+        } catch (ClassCastException e) {
+            throw new ClassCastException(activity.toString()
+                    + " must implement AddPostFragmentListener");
+        }
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+        listener = null;
+    }
+
+    @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View dialogView = inflater.inflate(R.layout.fragment_add_post, container, false);
         txtPost = (TextView)dialogView.findViewById(R.id.btn_post);
@@ -116,10 +126,10 @@ public class AddPostFragment extends DialogFragment implements View.OnClickListe
     public void onClick(View view) {
         switch (view.getId()){
             case R.id.btn_post:
-                getLoaderUtils().showLoader(true);
-                if (edPostText.getText().toString().length()>0)
-                    doPost(edPostText.getText().toString().trim());
-                else {
+                if (edPostText.getText().toString().length()>0) {
+                    listener.onPostWrited(edPostText.getText().toString().trim(), postImageUrl);
+                    dismiss();
+                }else {
                     Toast.makeText(getActivity().getApplicationContext(), "Debes de escribir una publicacion", Toast.LENGTH_SHORT).show();
                     getLoaderUtils().showLoader(false);
                 }break;
@@ -129,40 +139,24 @@ public class AddPostFragment extends DialogFragment implements View.OnClickListe
         }
     }
 
-    private void doPost(String postMessage){
-        if (mImageFile==null){
-            PostsHandler.doPost(postMessage, new PostsHandler.postedPost() {
-                @Override
-                public void posted(boolean posted) {
-                    getLoaderUtils().showLoader(false);
-                    dismiss();
-                }
-            });
-        }else{
-            UploadImageRequest uploadImageRequest = new UploadImageRequest(new UploadImageRequest.UploadImageRequestListener() {
-                @Override
-                public void onImageUploaded() {
-                    getLoaderUtils().showLoader(false);
-                    dismiss();
-                }
+    private void uploadImage(File imageFile){
+        UploadImageRequest uploadImageRequest = new UploadImageRequest(new UploadImageRequest.UploadImageRequestListener() {
+            @Override
+            public void onImageUploaded(String imageUrl) {
+                getLoaderUtils().showLoader(false);
+                vgTakenPicture.setVisibility(View.VISIBLE);
+                btnAddPick.setVisibility(View.GONE);
+                PicassoUtils.loadImage(getActivity().getApplicationContext(), imageUrl, ivPicture);
+                postImageUrl = imageUrl;
+            }
 
-                @Override
-                public void onError(String errorMsg) {
-                    Toast.makeText(getActivity(), errorMsg, Toast.LENGTH_SHORT).show();
-                    getLoaderUtils().showLoader(false);
-                    dismiss();
-                }
-            });
-            uploadImageRequest.uploadImage(mImageFile);
-        }
-    }
-
-    private LoaderUtils loaderUtils;
-
-    private LoaderUtils getLoaderUtils(){
-        if (loaderUtils==null)
-            loaderUtils = new LoaderUtils(getActivity());
-        return loaderUtils;
+            @Override
+            public void onError(String errorMsg) {
+                Toast.makeText(getActivity(), errorMsg, Toast.LENGTH_SHORT).show();
+                getLoaderUtils().showLoader(false);
+            }
+        });
+        uploadImageRequest.uploadImage(imageFile);
     }
 
     private void openCamera(){
@@ -209,10 +203,7 @@ public class AddPostFragment extends DialogFragment implements View.OnClickListe
             options.inPreferredConfig = Bitmap.Config.RGB_565;
             options.inDither = true;
 
-            //mBitmap = BitmapFactory.decodeFile(mPath);
-            //mImageFile = new File(mPath);
-
-            lowerResolution(mPath);
+            uploadImage(ImageUtils.saveImageInPath(mPath));
         }
     }
 
@@ -248,52 +239,10 @@ public class AddPostFragment extends DialogFragment implements View.OnClickListe
 
     }
 
-    private void lowerResolution(String path){
-        Log.i("Chelix", "lowerResolution: path " + path);
-        mImageFile = new File(path);
-
-        Bitmap croppedBmp = null;
-        try {
-            croppedBmp = Bitmap.createScaledBitmap(fixImageOrientation(path), 600, 600, false);
-            FileOutputStream fOut = new FileOutputStream(mImageFile);
-            croppedBmp.compress(Bitmap.CompressFormat.PNG, 50, fOut);
-            fOut.flush();
-            fOut.close();
-        } catch (FileNotFoundException e) {
-            Log.i("Chelix", "No se encontro el path a la imagen: " + '\n' + e.getMessage());
-        } catch (IOException e) {
-            e.printStackTrace();
-            Log.i("Chelix", "Error: " + e.getMessage() + '\n');
-        }
-
-        ivPicture.setImageBitmap(croppedBmp);
-
+    private LoaderUtils getLoaderUtils(){
+        if (loaderUtils==null)
+            loaderUtils = new LoaderUtils(getActivity());
+        return loaderUtils;
     }
 
-    public Bitmap fixImageOrientation(String path) throws IOException {
-        File f = new File(path);
-        ExifInterface exif = new ExifInterface(f.getPath());
-        int orientation = exif.getAttributeInt(
-                ExifInterface.TAG_ORIENTATION,
-                ExifInterface.ORIENTATION_NORMAL);
-        int angle = 0;
-
-        if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
-            angle = 90;
-        } else if (orientation == ExifInterface.ORIENTATION_ROTATE_180) {
-            angle = 180;
-        } else if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
-            angle = 270;
-        }
-
-        Matrix mat = new Matrix();
-        mat.postRotate(angle);
-        BitmapFactory.Options options = new BitmapFactory.Options();
-        options.inSampleSize = 2;
-
-        Bitmap bmp = BitmapFactory.decodeStream(new FileInputStream(f),
-                null, options);
-        return Bitmap.createBitmap(bmp, 0, 0, bmp.getWidth(),
-                bmp.getHeight(), mat, true);
-    }
 }

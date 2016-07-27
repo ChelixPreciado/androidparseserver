@@ -27,7 +27,7 @@ public class PostsHandler {
     public interface postedPost{public void posted(boolean posted);}
 
     public static void getPosts(final GetPostCallback callback){
-        ParseQuery<ParseObject> query = ParseQuery.getQuery("posts");
+        ParseQuery<ParseObject> query = ParseQuery.getQuery("posts").orderByDescending("_created_at");
         query.findInBackground(new FindCallback<ParseObject>() {
             @Override
             public void done(List<ParseObject> objects, ParseException e) {
@@ -46,9 +46,11 @@ public class PostsHandler {
         });
     }
 
-    public static void doPost(String postMsg, final postedPost callback){
+    public static void doPost(String postMsg, String imageUrl, final postedPost callback){
         ParseObject userPObject = new ParseObject("posts");
         userPObject.put("description", postMsg);
+        if (imageUrl!=null)
+            userPObject.put("imageUrl", imageUrl);
         userPObject.saveInBackground(new SaveCallback() {
             @Override
             public void done(ParseException e) {

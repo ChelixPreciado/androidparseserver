@@ -23,9 +23,9 @@ public class PostsAdapter extends RecyclerView.Adapter<PostViewHolder> {
     private ArrayList<Publicacion> posts;
     private Context context;
 
-    public PostsAdapter(Context context, ArrayList<Publicacion> posts) {
+    public PostsAdapter(Context context) {
         this.context = context;
-        this.posts = posts;
+        posts = new ArrayList<>();
     }
 
     @Override
@@ -47,5 +47,15 @@ public class PostsAdapter extends RecyclerView.Adapter<PostViewHolder> {
     @Override
     public int getItemCount() {
         return posts.size();
+    }
+
+    public void setPosts(ArrayList<Publicacion> posts) {
+        this.posts = posts;
+        notifyDataSetChanged();
+    }
+
+    public void clear(){
+        posts.clear();
+        notifyDataSetChanged();
     }
 }
