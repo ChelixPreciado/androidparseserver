@@ -83,7 +83,7 @@
             android:name="com.parse.push.gcm_sender_id"
             android:value="@string/GCM_SERVER_ID" />
 
-        <!--<service
+        <service
             android:name=".services.MyFirebaseMessagingService">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT"/>
