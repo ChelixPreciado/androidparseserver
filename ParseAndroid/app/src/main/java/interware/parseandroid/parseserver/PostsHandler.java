@@ -34,7 +34,6 @@ public class PostsHandler {
                 if (e==null){
                     ArrayList<Publicacion> posts = new ArrayList<Publicacion>();
                     for (ParseObject parseObject : objects){
-                        Log.i("Chelix", "Objeto encontrado: " + parseObject.getString("description"));
                         Publicacion p = new Publicacion(parseObject.getString("description"), parseObject.getString("imageUrl"));
                         posts.add(p);
                     }

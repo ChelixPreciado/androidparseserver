@@ -3,6 +3,7 @@ package interware.parseandroid.main;
 import android.app.Application;
 
 import com.parse.Parse;
+import com.parse.ParseInstallation;
 import com.squareup.picasso.OkHttpDownloader;
 import com.squareup.picasso.Picasso;
 
@@ -18,6 +19,7 @@ public class AppController extends Application {
         super.onCreate();
         parseInit();
         picassoInit();
+        ParseInstallation.getCurrentInstallation().saveInBackground();
     }
 
     private void parseInit(){
