@@ -3,8 +3,12 @@ package interware.parseandroid.main;
 import android.app.Application;
 
 import com.parse.Parse;
+import com.parse.ParseCloud;
+import com.parse.ParseInstallation;
 import com.squareup.picasso.OkHttpDownloader;
 import com.squareup.picasso.Picasso;
+
+import java.util.HashMap;
 
 import interware.parseandroid.Utils.ParseUtils;
 
@@ -26,6 +30,13 @@ public class AppController extends Application {
                 .server(ParseUtils.PARSE_SERVER_URL)
                 .clientKey(ParseUtils.PARSE_CLIENT_KEY)
                 .build());
+
+        HashMap<String, String> test = new HashMap<>();
+        test.put("channel", "testing");
+
+        ParseCloud.callFunctionInBackground("pushChannelTest", test);
+
+        ParseInstallation.getCurrentInstallation().saveInBackground();
     }
 
     private void picassoInit(){
